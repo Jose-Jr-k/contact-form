@@ -1,39 +1,54 @@
 version: '3.8'
 
 services:
-  php:
-    build: ./docker/php
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    image: contact-form-app
+    container_name: contact-form-app
+    restart: unless-stopped
     volumes:
-      - ./src:/var/www
+      - ./laravel:/var/www
     working_dir: /var/www
+    ports:
+      - "9000:9000"
+    networks:
+      - laravel
 
-  nginx:
-    image: nginx:1.21.1
+  web:
+    image: nginx:alpine
+    container_name: contact-form-web
+    restart: unless-stopped
+    volumes:
+      - ./laravel:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     ports:
       - "8080:80"
-    volumes:
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - ./src:/var/www
     depends_on:
-      - php
+      - app
+    networks:
+      - laravel
 
-  mysql:
+  db:
     image: mysql:8.0
+    container_name: contact-form-db
+    restart: unless-stopped
     environment:
+      MYSQL_DATABASE: contact_form
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: laravel_db
-      MYSQL_USER: laravel_user
-      MYSQL_PASSWORD: laravel_pass
+    volumes:
+      - db-data:/var/lib/mysql
     ports:
       - "3306:3306"
-    volumes:
-      - ./docker/mysql/data:/var/lib/mysql
+    networks:
+      - laravel
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    ports:
-      - "8081:80"
-    environment:
-      - PMA_HOST=mysql
-      - PMA_USER=laravel_user
-      - PMA_PASSWORD=laravel_pass
+volumes:
+  db-data:
+
+networks:
+  laravel:
+    driver: bridge
